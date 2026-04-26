@@ -13,6 +13,7 @@ type Task struct {
 	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
 	Title     string    `json:"title" gorm:"not null"`
 	MatkulID  uuid.UUID `json:"matkul_id" gorm:"type:uuid;not null;index"`
+	Priority  string    `json:"priority" gorm:"size:10;not null;default:medium"`
 	IsDone    bool      `json:"is_done" gorm:"default:false;index"`
 	Deadline  time.Time `json:"deadline"`
 	CreatedAt time.Time `json:"created_at"`
@@ -30,5 +31,9 @@ func (t *Task) BeforeCreate(tx *gorm.DB) error {
 
 func (t *Task) BeforeSave(tx *gorm.DB) error {
 	t.Title = strings.TrimSpace(t.Title)
+	t.Priority = strings.ToLower(strings.TrimSpace(t.Priority))
+	if t.Priority == "" {
+		t.Priority = "medium"
+	}
 	return nil
 }
