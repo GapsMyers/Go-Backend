@@ -57,6 +57,8 @@ func main() {
 		{
 			protected.POST("/matkul", matkulHandler.Create)
 			protected.GET("/matkul", matkulHandler.List)
+			protected.PATCH("/matkul/:id/done", matkulHandler.Update)
+			protected.GET("/me", authHandler.Me)
 			protected.POST("/deadlines", deadlineHandler.Create)
 			protected.GET("/deadlines", deadlineHandler.List)
 		}
@@ -93,4 +95,3 @@ func main() {
 
 	log.Println("server shutdown complete")
 }
-
