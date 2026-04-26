@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"backend/auth"
+	"backend/middleware"
 	"backend/models"
 	"errors"
 	"net/http"
@@ -132,6 +133,29 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			ID:    user.ID.String(),
 			Email: user.Email,
 		},
+	})
+}
+
+func (h *AuthHandler) Me(c *gin.Context) {
+	userID, err := middleware.UserIDFromContext(c)
+	if err != nil {
+		writeError(c, http.StatusUnauthorized, "UNAUTHORIZED", "missing authenticated user", nil)
+		return
+	}
+
+	var user models.User
+	if err := h.DB.Select("id", "email").Where("id = ?", userID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			writeError(c, http.StatusNotFound, "NOT_FOUND", "user not found", nil)
+			return
+		}
+		writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to load user", nil)
+		return
+	}
+
+	writeSuccess(c, http.StatusOK, "profile fetched", authUserResponse{
+		ID:    user.ID.String(),
+		Email: user.Email,
 	})
 }
 
