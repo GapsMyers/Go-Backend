@@ -39,5 +39,6 @@ func Migrate(db *gorm.DB) error {
 		&models.User{},
 		&models.Matkul{},
 		&models.Deadline{},
+		&models.Task{},
 	)
 }

@@ -41,6 +41,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(db, jwtService)
 	matkulHandler := handlers.NewMatkulHandler(db)
 	deadlineHandler := handlers.NewDeadlineHandler(db)
+	taskHandler := handlers.NewTaskHandler(db)
 
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery(), middleware.CORS(cfg.AllowedOrigins))
@@ -64,6 +65,11 @@ func main() {
 			protected.PATCH("/deadlines/:id", deadlineHandler.Update)
 			protected.PATCH("/deadlines/:id/toggle", deadlineHandler.ToggleStatus)
 			protected.DELETE("/deadlines/:id", deadlineHandler.Delete)
+
+			protected.POST("/tasks", taskHandler.Create)
+			protected.GET("/tasks", taskHandler.List)
+			protected.DELETE("/tasks/:id", taskHandler.Delete)
+			protected.PATCH("/tasks/:id", taskHandler.Update)
 		}
 	}
 
