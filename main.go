@@ -57,10 +57,13 @@ func main() {
 		{
 			protected.POST("/matkul", matkulHandler.Create)
 			protected.GET("/matkul", matkulHandler.List)
-			protected.PATCH("/matkul/:id/done", matkulHandler.Update)
+			protected.PATCH("/matkul/:id", matkulHandler.Update)
 			protected.GET("/me", authHandler.Me)
 			protected.POST("/deadlines", deadlineHandler.Create)
 			protected.GET("/deadlines", deadlineHandler.List)
+			protected.PATCH("/deadlines/:id", deadlineHandler.Update)
+			protected.PATCH("/deadlines/:id/toggle", deadlineHandler.ToggleStatus)
+			protected.DELETE("/deadlines/:id", deadlineHandler.Delete)
 		}
 	}
 

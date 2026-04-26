@@ -25,12 +25,14 @@ type createMatkulRequest struct {
 	Name     string `json:"name" binding:"required,min=2,max=120"`
 	Code     string `json:"code" binding:"max=30"`
 	Semester string `json:"semester" binding:"max=20"`
+	Tag      string `json:"tag" binding:"max=50"`
 }
 
 type updateMatkulRequest struct {
 	Name     string `json:"name" binding:"omitempty,min=2,max=120"`
 	Code     string `json:"code" binding:"max=30"`
 	Semester string `json:"semester" binding:"max=20"`
+	Tag      string `json:"tag" binding:"max=50"`
 }
 
 type matkulResponse struct {
@@ -38,6 +40,7 @@ type matkulResponse struct {
 	Name      string `json:"name"`
 	Code      string `json:"code"`
 	Semester  string `json:"semester"`
+	Tag       string `json:"tag"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }
@@ -60,6 +63,7 @@ func (h *MatkulHandler) Create(c *gin.Context) {
 		Name:     strings.TrimSpace(req.Name),
 		Code:     strings.TrimSpace(req.Code),
 		Semester: strings.TrimSpace(req.Semester),
+		Tag:      strings.TrimSpace(req.Tag),
 	}
 
 	if err := h.DB.Create(&matkul).Error; err != nil {
@@ -137,6 +141,10 @@ func (h *MatkulHandler) Update(c *gin.Context) {
 		matkul.Semester = semester
 		updated = true
 	}
+	if tag := strings.TrimSpace(req.Tag); tag != "" {
+		matkul.Tag = tag
+		updated = true
+	}
 
 	if updated {
 		if err := h.DB.Save(&matkul).Error; err != nil {
@@ -158,6 +166,7 @@ func toMatkulResponse(matkul models.Matkul) matkulResponse {
 		Name:      matkul.Name,
 		Code:      matkul.Code,
 		Semester:  matkul.Semester,
+		Tag:       matkul.Tag,
 		CreatedAt: matkul.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: matkul.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
@@ -169,6 +178,7 @@ func tomatkulUpdateResponse(matkul models.Matkul) matkulResponse {
 		Name:      matkul.Name,
 		Code:      matkul.Code,
 		Semester:  matkul.Semester,
+		Tag:       matkul.Tag,
 		CreatedAt: matkul.CreatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: matkul.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
