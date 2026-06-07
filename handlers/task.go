@@ -22,25 +22,34 @@ func NewTaskHandler(db *gorm.DB) *TaskHandler {
 }
 
 type createTaskRequest struct {
-	Name     string `json:"name"`
-	Title    string `json:"title"`
-	MatkulID string `json:"matkul_id" binding:"required"`
-	Deadline string `json:"deadline" binding:"required"`
-	Priority string `json:"priority"`
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	MatkulID    string `json:"matkul_id" binding:"required"`
+	Deadline    string `json:"deadline" binding:"required"`
+	Priority    string `json:"priority"`
 }
 
 type updateTaskRequest struct {
 	IsDone *bool `json:"is_done" binding:"required"`
 }
 
+type editTaskRequest struct {
+	Title       *string `json:"title"`
+	Description *string `json:"description"`
+	Deadline    *string `json:"deadline"`
+	Priority    *string `json:"priority"`
+}
+
 type taskResponse struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	IsDone     bool   `json:"is_done"`
-	Deadline   string `json:"deadline"`
-	Priority   string `json:"priority"`
-	MatkulID   string `json:"matkul_id"`
-	MatkulName string `json:"matkul_name"`
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	IsDone      bool   `json:"is_done"`
+	Deadline    string `json:"deadline"`
+	Priority    string `json:"priority"`
+	MatkulID    string `json:"matkul_id"`
+	MatkulName  string `json:"matkul_name"`
 }
 
 func (h *TaskHandler) Create(c *gin.Context) {
@@ -95,11 +104,12 @@ func (h *TaskHandler) Create(c *gin.Context) {
 	}
 
 	task := models.Task{
-		Title:    title,
-		MatkulID: matkulID,
-		Priority: priority,
-		Deadline: deadline,
-		IsDone:   false,
+		Title:       title,
+		Description: strings.TrimSpace(req.Description),
+		MatkulID:    matkulID,
+		Priority:    priority,
+		Deadline:    deadline,
+		IsDone:      false,
 	}
 
 	if err := h.DB.Create(&task).Error; err != nil {
@@ -245,65 +255,97 @@ func (h *TaskHandler) Delete(c *gin.Context) {
 	writeSuccess(c, http.StatusOK, "task deleted", nil)
 }
 
-	func (h *TaskHandler) Edit(c *gin.Context) {
-		userID, err := middleware.UserIDFromContext(c)
-		if err != nil {
-			writeError(c, http.StatusUnauthorized, "UNAUTHORIZED", "missing auth", nil)
-			return
-		}
-
-		taskID, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
-		if err != nil {
-			writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid task id", nil)
-			return
-		}
-
-		var task models.Task
-		if err := h.DB.
-			Preload("Matkul").
-			Joins("JOIN matkuls ON matkuls.id = tasks.matkul_id").
-			Where("tasks.id = ? AND matkuls.user_id = ?", taskID, userID).
-			First(&task).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				writeError(c, http.StatusNotFound, "NOT_FOUND", "task not found", nil)
-				return
-			}
-			writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "query failed", nil)
-			return
-		}
-
-		var req updateTaskRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid payload", err.Error())
-			return
-		}
-
-		if req.IsDone != nil {
-			task.IsDone = *req.IsDone
-		}
-
-		if err := h.DB.Save(&task).Error; err != nil {
-			writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save task", nil)
-			return
-		}
-
-		if err := h.DB.Preload("Matkul").First(&task, "id = ?", task.ID).Error; err != nil {
-			writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch updated task", nil)
-			return
-		}
-
-		writeSuccess(c, http.StatusOK, "task updated", toTaskResponse(task))
+func (h *TaskHandler) Edit(c *gin.Context) {
+	userID, err := middleware.UserIDFromContext(c)
+	if err != nil {
+		writeError(c, http.StatusUnauthorized, "UNAUTHORIZED", "missing auth", nil)
+		return
 	}
+
+	taskID, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid task id", nil)
+		return
+	}
+
+	var task models.Task
+	if err := h.DB.
+		Preload("Matkul").
+		Joins("JOIN matkuls ON matkuls.id = tasks.matkul_id").
+		Where("tasks.id = ? AND matkuls.user_id = ?", taskID, userID).
+		First(&task).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			writeError(c, http.StatusNotFound, "NOT_FOUND", "task not found", nil)
+			return
+		}
+		writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "query failed", nil)
+		return
+	}
+
+	var req editTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid payload", err.Error())
+		return
+	}
+
+	// Update title jika dikirim
+	if req.Title != nil {
+		title := strings.TrimSpace(*req.Title)
+		if title == "" {
+			writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "title cannot be empty", nil)
+			return
+		}
+		task.Title = title
+	}
+
+	// Update description jika dikirim
+	if req.Description != nil {
+		task.Description = strings.TrimSpace(*req.Description)
+	}
+
+	// Update deadline jika dikirim
+	if req.Deadline != nil {
+		deadline, err := parseTaskDeadline(*req.Deadline)
+		if err != nil {
+			writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid deadline format, use RFC3339 or YYYY-MM-DD", nil)
+			return
+		}
+		task.Deadline = deadline
+	}
+
+	// Update priority jika dikirim
+	if req.Priority != nil {
+		priority := normalizeTaskPriority(*req.Priority)
+		if !isValidTaskPriority(priority) {
+			writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "priority must be one of: low, medium, high", nil)
+			return
+		}
+		task.Priority = priority
+	}
+
+	if err := h.DB.Save(&task).Error; err != nil {
+		writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save task", nil)
+		return
+	}
+
+	if err := h.DB.Preload("Matkul").First(&task, "id = ?", task.ID).Error; err != nil {
+		writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch updated task", nil)
+		return
+	}
+
+	writeSuccess(c, http.StatusOK, "task updated", toTaskResponse(task))
+}
 
 func toTaskResponse(t models.Task) taskResponse {
 	return taskResponse{
-		ID:         t.ID.String(),
-		Title:      t.Title,
-		IsDone:     t.IsDone,
-		Deadline:   t.Deadline.UTC().Format("2006-01-02T15:04:05.000Z"),
-		Priority:   t.Priority,
-		MatkulID:   t.MatkulID.String(),
-		MatkulName: t.Matkul.Name,
+		ID:          t.ID.String(),
+		Title:       t.Title,
+		Description: t.Description,
+		IsDone:      t.IsDone,
+		Deadline:    t.Deadline.UTC().Format("2006-01-02T15:04:05.000Z"),
+		Priority:    t.Priority,
+		MatkulID:    t.MatkulID.String(),
+		MatkulName:  t.Matkul.Name,
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -60,6 +61,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	email := normalizeEmail(req.Email)
+
+	// Validasi format email yang lebih ketat
+	if !isValidEmail(email) {
+		writeError(c, http.StatusBadRequest, "INVALID_EMAIL", "format email tidak valid. Gunakan format: user@gmail.com", nil)
+		return
+	}
 
 	var existing models.User
 	err := h.DB.Select("id").Where("email = ?", email).First(&existing).Error
@@ -355,4 +362,56 @@ func isDuplicateError(err error) bool {
 
 	errStr := strings.ToLower(err.Error())
 	return strings.Contains(errStr, "duplicate key") || strings.Contains(errStr, "unique constraint")
+}
+
+// emailRegex memvalidasi format email sesuai standar RFC 5322 (simplified).
+// Format yang diterima: user@domain.tld
+// - Local part: huruf, angka, titik, underscore, plus, hyphen
+// - Domain: huruf, angka, hyphen, dipisahkan titik
+// - TLD: minimal 2 karakter huruf
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+
+func isValidEmail(email string) bool {
+	if len(email) > 255 {
+		return false
+	}
+
+	// Cek format dasar dengan regex
+	if !emailRegex.MatchString(email) {
+		return false
+	}
+
+	// Cek tidak boleh ada titik ganda di domain
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) != 2 {
+		return false
+	}
+
+	localPart := parts[0]
+	domainPart := parts[1]
+
+	// Local part tidak boleh dimulai/diakhiri dengan titik
+	if strings.HasPrefix(localPart, ".") || strings.HasSuffix(localPart, ".") {
+		return false
+	}
+
+	// Local part tidak boleh ada titik ganda
+	if strings.Contains(localPart, "..") {
+		return false
+	}
+
+	// Domain tidak boleh ada titik ganda
+	if strings.Contains(domainPart, "..") {
+		return false
+	}
+
+	// Domain tidak boleh dimulai/diakhiri dengan hyphen atau titik
+	if strings.HasPrefix(domainPart, ".") || strings.HasSuffix(domainPart, ".") {
+		return false
+	}
+	if strings.HasPrefix(domainPart, "-") || strings.HasSuffix(domainPart, "-") {
+		return false
+	}
+
+	return true
 }

@@ -10,14 +10,15 @@ import (
 
 // Task stores assignments linked to a specific matkul.
 type Task struct {
-	ID        uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
-	Title     string    `json:"title" gorm:"not null"`
-	MatkulID  uuid.UUID `json:"matkul_id" gorm:"type:uuid;not null;index"`
-	Priority  string    `json:"priority" gorm:"size:10;not null;default:medium"`
-	IsDone    bool      `json:"is_done" gorm:"default:false;index"`
-	Deadline  time.Time `json:"deadline"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
+	Title       string    `json:"title" gorm:"not null"`
+	Description string    `json:"description" gorm:"size:1000"`
+	MatkulID    uuid.UUID `json:"matkul_id" gorm:"type:uuid;not null;index"`
+	Priority    string    `json:"priority" gorm:"size:10;not null;default:medium"`
+	IsDone      bool      `json:"is_done" gorm:"default:false;index"`
+	Deadline    time.Time `json:"deadline"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 
 	Matkul Matkul `json:"-" gorm:"foreignKey:MatkulID;references:ID;constraint:OnDelete:CASCADE"`
 }
@@ -31,6 +32,7 @@ func (t *Task) BeforeCreate(tx *gorm.DB) error {
 
 func (t *Task) BeforeSave(tx *gorm.DB) error {
 	t.Title = strings.TrimSpace(t.Title)
+	t.Description = strings.TrimSpace(t.Description)
 	t.Priority = strings.ToLower(strings.TrimSpace(t.Priority))
 	if t.Priority == "" {
 		t.Priority = "medium"
