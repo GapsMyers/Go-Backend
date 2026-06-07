@@ -145,3 +145,40 @@ func toDeadlineResponse(deadline models.Deadline, matkulName string) deadlineRes
 		UpdatedAt:   deadline.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
+
+// Delete menghapus tugas berdasarkan ID, hanya jika tugas milik user yang sedang login
+func (h *DeadlineHandler) Delete(c *gin.Context) {
+	userID, err := middleware.UserIDFromContext(c)
+	if err != nil {
+		writeError(c, http.StatusUnauthorized, "UNAUTHORIZED", "missing authenticated user", nil)
+		return
+	}
+
+	idParam := c.Param("id")
+	if idParam == "" {
+		writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "missing deadline id", nil)
+		return
+	}
+	deadlineID, err := uuid.Parse(idParam)
+	if err != nil {
+		writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid deadline id", nil)
+		return
+	}
+
+	var deadline models.Deadline
+	if err := h.DB.Where("id = ? AND user_id = ?", deadlineID, userID).First(&deadline).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			writeError(c, http.StatusNotFound, "NOT_FOUND", "deadline not found or not owned by user", nil)
+			return
+		}
+		writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to find deadline", nil)
+		return
+	}
+
+	if err := h.DB.Delete(&deadline).Error; err != nil {
+		writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete deadline", nil)
+		return
+	}
+
+	writeSuccess(c, http.StatusOK, "deadline deleted", nil)
+}
