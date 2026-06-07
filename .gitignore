@@ -32,3 +32,4 @@ go.work.sum
 # Temporary directories and build artifacts (like Air's default)
 tmp/
 /build/
+.aider*

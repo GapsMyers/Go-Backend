@@ -245,6 +245,56 @@ func (h *TaskHandler) Delete(c *gin.Context) {
 	writeSuccess(c, http.StatusOK, "task deleted", nil)
 }
 
+	func (h *TaskHandler) Edit(c *gin.Context) {
+		userID, err := middleware.UserIDFromContext(c)
+		if err != nil {
+			writeError(c, http.StatusUnauthorized, "UNAUTHORIZED", "missing auth", nil)
+			return
+		}
+
+		taskID, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
+		if err != nil {
+			writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid task id", nil)
+			return
+		}
+
+		var task models.Task
+		if err := h.DB.
+			Preload("Matkul").
+			Joins("JOIN matkuls ON matkuls.id = tasks.matkul_id").
+			Where("tasks.id = ? AND matkuls.user_id = ?", taskID, userID).
+			First(&task).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				writeError(c, http.StatusNotFound, "NOT_FOUND", "task not found", nil)
+				return
+			}
+			writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "query failed", nil)
+			return
+		}
+
+		var req updateTaskRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			writeError(c, http.StatusBadRequest, "INVALID_REQUEST", "invalid payload", err.Error())
+			return
+		}
+
+		if req.IsDone != nil {
+			task.IsDone = *req.IsDone
+		}
+
+		if err := h.DB.Save(&task).Error; err != nil {
+			writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save task", nil)
+			return
+		}
+
+		if err := h.DB.Preload("Matkul").First(&task, "id = ?", task.ID).Error; err != nil {
+			writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch updated task", nil)
+			return
+		}
+
+		writeSuccess(c, http.StatusOK, "task updated", toTaskResponse(task))
+	}
+
 func toTaskResponse(t models.Task) taskResponse {
 	return taskResponse{
 		ID:         t.ID.String(),
