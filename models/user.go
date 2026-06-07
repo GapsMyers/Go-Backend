@@ -13,6 +13,7 @@ type User struct {
 	ID           uuid.UUID `json:"id" gorm:"type:uuid;primaryKey"`
 	Email        string    `json:"email" gorm:"size:255;uniqueIndex;not null"`
 	PasswordHash string    `json:"-" gorm:"size:255;not null"`
+	ProfilePhoto string    `json:"profile_photo" gorm:"size:255"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }

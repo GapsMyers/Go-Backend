@@ -29,6 +29,7 @@ func main() {
 	}
 
 	db, err := database.NewPostgres(cfg)
+	log.Printf("DEBUG: Database URL used: %s", cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("init database: %v", err)
 	}
@@ -41,9 +42,13 @@ func main() {
 	authHandler := handlers.NewAuthHandler(db, jwtService)
 	matkulHandler := handlers.NewMatkulHandler(db)
 	deadlineHandler := handlers.NewDeadlineHandler(db)
+	taskHandler := handlers.NewTaskHandler(db)
 
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery(), middleware.CORS(cfg.AllowedOrigins))
+
+	// Serve static files for profile photos and other uploads
+	router.Static("/uploads", "./uploads")
 
 	router.GET("/health", handlers.Health)
 
@@ -51,14 +56,29 @@ func main() {
 	{
 		api.POST("/register", authHandler.Register)
 		api.POST("/login", authHandler.Login)
+		api.POST("/refresh", authHandler.Refresh)
+		api.POST("/logout", authHandler.Logout)
 
 		protected := api.Group("")
 		protected.Use(middleware.JWTAuth(jwtService))
 		{
 			protected.POST("/matkul", matkulHandler.Create)
 			protected.GET("/matkul", matkulHandler.List)
+			protected.PATCH("/matkul/:id", matkulHandler.Update)
+			protected.GET("/me", authHandler.Me)
+			protected.PATCH("/change-password", authHandler.ChangePassword)
+			protected.PATCH("/profile-photo", authHandler.UpdateProfilePhoto)
 			protected.POST("/deadlines", deadlineHandler.Create)
 			protected.GET("/deadlines", deadlineHandler.List)
+			protected.PATCH("/deadlines/:id", deadlineHandler.Update)
+			protected.PATCH("/deadlines/:id/toggle", deadlineHandler.ToggleStatus)
+			protected.DELETE("/deadlines/:id", deadlineHandler.Delete)
+
+			protected.POST("/tasks", taskHandler.Create)
+			protected.GET("/tasks", taskHandler.List)
+			protected.DELETE("/tasks/:id", taskHandler.Delete)
+			protected.PATCH("/tasks/:id", taskHandler.Update)
+			protected.PUT("/tasks/:id/toggle", taskHandler.Edit)
 		}
 	}
 
@@ -93,4 +113,3 @@ func main() {
 
 	log.Println("server shutdown complete")
 }
-

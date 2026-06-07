@@ -15,6 +15,7 @@ type Matkul struct {
 	Name      string    `json:"name" gorm:"size:120;not null;uniqueIndex:idx_matkul_user_name,priority:2"`
 	Code      string    `json:"code" gorm:"size:30"`
 	Semester  string    `json:"semester" gorm:"size:20"`
+	Tag       string    `json:"tag" gorm:"size:50"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
@@ -32,5 +33,6 @@ func (m *Matkul) BeforeSave(tx *gorm.DB) error {
 	m.Name = strings.TrimSpace(m.Name)
 	m.Code = strings.TrimSpace(m.Code)
 	m.Semester = strings.TrimSpace(m.Semester)
+	m.Tag = strings.TrimSpace(m.Tag)
 	return nil
 }

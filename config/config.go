@@ -33,7 +33,7 @@ func Load() (Config, error) {
 		DatabaseURL:      strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		JWTSecret:        strings.TrimSpace(os.Getenv("JWT_SECRET")),
 		JWTExpireMinutes: getEnvInt("JWT_EXPIRE_MINUTES", 60),
-		AllowedOrigins:   splitCSV(getEnv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8080")),
+		AllowedOrigins:   splitCSV(getEnv("ALLOWED_ORIGINS", "http://localhost:*,http://127.0.0.1:*")),
 		ReadTimeout:      time.Duration(getEnvInt("READ_TIMEOUT_SECONDS", 10)) * time.Second,
 		WriteTimeout:     time.Duration(getEnvInt("WRITE_TIMEOUT_SECONDS", 15)) * time.Second,
 		ShutdownTimeout:  time.Duration(getEnvInt("SHUTDOWN_TIMEOUT_SECONDS", 10)) * time.Second,
